@@ -1,0 +1,866 @@
+package packageGUD;
+
+	import java.awt.Color;
+	import java.awt.Dimension;
+	import java.awt.Font;
+	import java.awt.TextArea;
+	import java.awt.event.ActionEvent;
+	import java.awt.event.ActionListener;
+	import java.net.UnknownHostException;
+	import java.text.ParseException;
+	import java.text.SimpleDateFormat;
+	import java.time.LocalDate;
+	import java.time.format.DateTimeFormatter;
+	import java.util.Arrays;
+	import java.util.Calendar;
+	import java.util.Date;
+	import java.util.regex.Pattern;
+	import javax.swing.JButton;
+	import javax.swing.JFrame;
+	import javax.swing.JLabel;
+	import javax.swing.JTextField;
+	import javax.swing.JTextPane;
+	import javax.swing.SwingConstants;
+	import org.bson.Document;
+	import com.mongodb.Block;
+	import com.mongodb.MongoClient;
+	import com.mongodb.MongoClientOptions;
+	import com.mongodb.MongoClientURI;
+	import com.mongodb.MongoException;
+	import com.mongodb.client.MongoCollection;
+	import com.mongodb.client.MongoCursor;
+	import com.mongodb.client.MongoDatabase;
+
+
+import java.awt.SystemColor;
+import javax.swing.JComboBox;
+
+	public class GUD
+	{	
+		private static final String HOST = "*****";
+		private static final int PORT = *****;
+		private static final MongoClientURI MONGOURI = new MongoClientURI("*****");
+		private static final MongoClientOptions MONGOCLIENTOPTIONS = MongoClientOptions.builder().sslEnabled(false).build();
+		
+		private static JFrame daFrame;
+		private static JLabel labelTSstart;
+		private static JLabel labelTSend;
+		private static JLabel labelText1;
+		private static JLabel labelText2;
+		private static JLabel labelCount;
+		private static JLabel labelQuery;
+		private static JLabel labelToday;
+		private static JTextField textTSstart;
+		private static JTextField textTSend;
+		private static JButton getUsers;
+		private static JButton getToDos;
+		private static JButton clearButton;
+		private static JButton getComments;
+		private static JButton getRatings;
+		private static JButton getAll;
+		private static JButton getRequests;
+		private static JButton getChelpers;
+		private static JButton clearTextarea;
+		private static JButton increaseStartdate;
+		private static JButton decreaseStartdate;
+		private static JButton increaseEnddate;
+		private static JButton decreaseEnddate;
+		private static TextArea valueList;
+		private static JTextPane textPaneQuery;
+		private static JComboBox cbDatevalue;
+		
+		private static Calendar c;
+		private static SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy");
+		private static DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		private static LocalDate now = LocalDate.now();
+		
+		private static String inputString1;
+		private static String inputString2;
+		private static String nowStr;
+		private static Date startDate;
+		private static Date endDate;
+		private static Float startTime;
+		private static Float endTime;
+		private static String category;
+		private static String timeValue;
+		
+		private static String[] docArray = new String[50];
+		private static int help;
+
+		private static MongoClient getMongoClient_1() throws UnknownHostException										        // connect to MongoDB is not mandatory security
+		{
+		      MongoClient mongoClient = new MongoClient(HOST, PORT);
+		       
+		      return mongoClient;
+		}
+		private static MongoClient getMongoClient_2() throws UnknownHostException										        // connect to the MongoDB with security
+		{
+//    MongoCredential credential = MongoCredential.createCredential(USERNAME, DBNAME, PASSWORD.toCharArray());
+//    MongoClient mongoClient = new MongoClient(new ServerAddress(HOST, PORT), Arrays.asList(credential), MONGOCLIENTOPTIONS);
+			MongoClient mongoClient = new MongoClient(MONGOURI);  
+			 
+			return mongoClient;
+		}
+		public static MongoClient getMongoClient() throws UnknownHostException											        // choose type of connection
+		{  
+		   return getMongoClient_2();
+		}
+		private static void ping() throws UnknownHostException															                // visualising iteration in DB
+		{
+			 MongoClient mongoClient = getMongoClient();
+		   System.out.println("List all DB:");
+		   // Get database names
+		   MongoCursor<String> dbCursor = mongoClient.listDatabaseNames().iterator();
+		   while(dbCursor.hasNext())
+		    	{
+		       		System.out.println("+ DB Name: " + dbCursor.next());
+		      }
+		   System.out.println("Done!");
+		}
+		private static void getUsers(Float startTime, Float endTime) throws UnknownHostException						// special query for users (doesn't contain "deleted@whats2doo.com")
+		{
+			try
+			{
+	            MongoDatabase database = getMongoClient().getDatabase("*****");
+	            MongoCollection<Document> collection = database.getCollection("*****");
+	            Document query = new Document();
+	            query.append("$and", Arrays.asList(	new Document().append("created_at",
+	            									new Document().append("$gte", startTime)),
+	            									new Document().append("created_at",
+	            									new Document().append("$lte", endTime)),
+	            									new Document().append("email",
+	            									new Document().append("$not", Pattern.compile(".*deleted@whats2doo\\.com.*", Pattern.CASE_INSENSITIVE)))));
+	            help = 0;
+	            Block<Document> processBlock = new Block<Document>()
+	            {
+	            	  @Override
+	                public void apply(final Document document)
+	                {
+	                	docArray = document.toString().trim().split("\\s*,\\s*", -1);
+	                	help++;
+	                	valueList.append("###### " + help + ". EINTRAG" + " ######" + "\n\n");
+	                	for(int i = 0; i < docArray.length; i++)
+	                	{	
+	                		valueList.append(docArray[i] + "\n");
+	                		valueList.append("\n");
+	                	}
+	                	valueList.append("\n");
+	                }
+	            };
+	            collection.find(query).forEach(processBlock);
+	            labelCount.setText(String.valueOf(help));
+	        }
+			catch (MongoException e)
+			{
+	            System.out.println(e);
+	    }
+		}
+		private static void getTodos(Float startTime, Float endTime) throws UnknownHostException						// special query for todos (doesn't contain "status 5")
+		{
+			try
+			{
+		        MongoDatabase database = getMongoClient().getDatabase("*****");
+		        MongoCollection<Document> collection = database.getCollection("*****");
+		        Document query = new Document();
+		        query.append("$and", Arrays.asList(	new Document().append("created_at",
+		        									    new Document().append("$gte", startTime)),
+		                							new Document().append("created_at",
+		                							new Document().append("$lte", endTime)),
+		                							new Document().append("status",
+		                							new Document().append("$ne", 5))));
+		        help = 0;
+		        Block<Document> processBlock = new Block<Document>()
+		        {
+	            @Override
+	            public void apply(final Document document)
+	            {
+	            	docArray = document.toString().trim().split("\\s*,\\s*", -1);
+	            	help++;
+	            	valueList.append("###### " + help + ". EINTRAG" + " ######" + "\n\n");
+	            	for(int i = 0; i < docArray.length; i++)
+	            	{	
+	            		valueList.append(docArray[i] + "\n");
+	            		valueList.append("\n");
+	            	}
+	            	valueList.append("\n");
+	            }
+	        };
+	        collection.find(query).forEach(processBlock);
+	        labelCount.setText(String.valueOf(help));
+			}
+			catch (MongoException e)
+			{
+				System.out.println(e);
+			}
+		}
+		private static void getChelpers(Float startTime, Float endTime) throws UnknownHostException					// special query for todos (doesn't contain "status 5")
+		{
+			try
+			{
+		        MongoDatabase database = getMongoClient().getDatabase("*****");
+		        MongoCollection<Document> collection = database.getCollection("*****");
+		        Document query = new Document();
+		        query.append("$and", Arrays.asList(	new Document().append("created_at",
+		        									    new Document().append("$gte", startTime)),
+		                							new Document().append("created_at",
+		                							new Document().append("$lte", endTime)),
+		                							new Document().append("status", 2)));
+		        help = 0;
+		        Block<Document> processBlock = new Block<Document>()
+		        {
+	            @Override
+	            public void apply(final Document document)
+	            {
+	            	docArray = document.toString().trim().split("\\s*,\\s*", -1);
+	            	help++;
+	            	valueList.append("###### " + help + ". EINTRAG" + " ######" + "\n\n");
+	            	for(int i = 0; i < docArray.length; i++)
+	            	{	
+	            		valueList.append(docArray[i] + "\n");
+	            		valueList.append("\n");
+	            	}
+	            	valueList.append("\n");
+	            }
+	        };
+	        collection.find(query).forEach(processBlock);
+	        labelCount.setText(String.valueOf(help));
+			}
+			catch (MongoException e)
+			{
+				System.out.println(e);
+			}
+		}
+		private static void getRemaining(Float startTime, Float endTime, String category) throws UnknownHostException	// standard query (range between creation time)
+		{
+	        try
+	        {
+	            MongoDatabase database = getMongoClient().getDatabase("*****");
+	            MongoCollection<Document> collection = database.getCollection("*****");
+	            Document query = new Document();
+	            query.append("$and", Arrays.asList(	new Document().append("created_at",
+	            									    new Document().append("$gte", startTime)),
+	                    							new Document().append("created_at",
+	                    							new Document().append("$lte", endTime))));
+	            help = 0;
+	            Block<Document> processBlock = new Block<Document>()													            // looks at every document found
+	            {
+	                @Override
+	                public void apply(final Document document)															
+	                {
+	                	docArray = document.toString().trim().split("\\s*,\\s*", -1);									      // splits the document to make it readable
+	                	help++;																							                                // counter for results
+	                	valueList.append("###### " + help + ". EINTRAG" + " ######" + "\n\n");							// headline for every result
+	                	for(int i = 0; i < docArray.length; i++)														                // print in text field
+	                	{	
+	                		valueList.append(docArray[i] + "\n");
+	                		valueList.append("\n");
+	                	}
+	                	valueList.append("\n");
+	                }
+	            };
+	            collection.find(query).forEach(processBlock);
+	            labelCount.setText(String.valueOf(help));
+	        }
+			catch (MongoException e)
+			{
+				System.out.println(e);
+			}
+		}
+		private static void btnGetUsers()																				                            // special query visualisation for users
+		{																																																		// STARTDATE
+			inputString1 = textTSstart.getText();																		                          // getText(date in string form)
+			System.out.println("inputString1: " + inputString1);
+			try
+			{
+				startDate= df.parse(inputString1);																		                          // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			
+			startTime = Float.valueOf(startDate.getTime() + ".0");														                //convert millis to timestamp
+			System.out.println("timestamp: " + startDate.getTime() + "\n startDate: " + startDate);
+																														                                            // ENDDATE
+			inputString2 = textTSend.getText();																			                          // getText(date in string form)
+			System.out.println("inputString2: " + inputString2);
+			try
+			{
+				endDate= df.parse(inputString2);																		                            // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			endTime = Float.valueOf(endDate.getTime() + ".0");															                  // convert millis to timestamp
+			System.out.println("timestamp: " + endDate.getTime() + "\n endDate: " + endDate);
+	    textPaneQuery.setText(	"{ $and: [ { \"created_at\": { $gte: " + startDate.getTime() + ".0" + " } }," +		// build and send query to text field
+									            "{ \"created_at\": { $lte: " + endDate.getTime() + ".0" + " } }," +
+									            "{ \"email\": { $not: /.*deleted@whats2doo\\.com.*/i } } ] }");
+		}
+		private static void btnGetTodos()
+		{																									                                                  // STARTDATE
+			inputString1 = textTSstart.getText();																		                          // getText(date in string form)
+			System.out.println("inputString1: " + inputString1);
+			try
+			{
+				startDate= df.parse(inputString1);																		                          // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			startTime = Float.valueOf(startDate.getTime() + ".0");														                //convert millis to timestamp
+			System.out.println("timestamp: " + startDate.getTime() + "\n startDate: " + startDate);
+																														                                            // ENDDATE
+			inputString2 = textTSend.getText();																			                          // getText(date in string form)
+			System.out.println("inputString2: " + inputString2);
+			try
+			{
+				endDate= df.parse(inputString2);																		                            // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			endTime = Float.valueOf(endDate.getTime() + ".0");															                  // convert millis to timestamp
+			System.out.println("timestamp: " + endDate.getTime() + "\n endDate: " + endDate);
+			textPaneQuery.setText(	"{ $and: [ { \"created_at\": { $gte: " + startDate.getTime() + ".0" + " } }," +		// build and send query to text field
+									            "{ \"created_at\": { $lte: " + endDate.getTime() + ".0" + " } }," +
+									            "{ \"status\": { $ne: NumberInt(5) } } ] }"); 
+		}
+		private static void btnGetChelpers()
+		{																												                                            // STARTDATE
+			inputString1 = textTSstart.getText();																		                          // getText(date in string form)
+			System.out.println("inputString1: " + inputString1);
+			try
+			{
+				startDate= df.parse(inputString1);																		                          // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			startTime = Float.valueOf(startDate.getTime() + ".0");														                //convert millis to timestamp
+			System.out.println("timestamp: " + startDate.getTime() + "\n startDate: " + startDate);
+																														// ENDDATE
+			inputString2 = textTSend.getText();																			                          // getText(date in string form)
+			System.out.println("inputString2: " + inputString2);
+			try
+			{
+				endDate= df.parse(inputString2);																		                            // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			endTime = Float.valueOf(endDate.getTime() + ".0");															                  // convert millis to timestamp
+			System.out.println("timestamp: " + endDate.getTime() + "\n endDate: " + endDate);
+			textPaneQuery.setText(	"{ $and: [ { \"status\": 2 }," +
+									            "{ \"created_at\": { $gte: " + startDate.getTime() + ".0" + " } }," +
+									              "{ \"created_at\": { $lte: " + endDate.getTime() + ".0" + " } } ] }"); 
+		}
+		private static void btnGetRemaining()																			                          // standard query visualisation
+		{																												                                            // STARTDATE
+			inputString1 = textTSstart.getText();																		                          // getText(date in string form)
+			System.out.println("inputString1: " + inputString1);
+			try
+			{
+				startDate = df.parse(inputString1);																		                          // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			startTime = Float.valueOf(startDate.getTime() + ".0");														                // convert millis to timestamp
+			System.out.println("timestamp: " + startDate.getTime() + "\n startDate: " + startDate);
+																														                                            // ENDDATE
+			inputString2 = textTSend.getText();																			                          // getText(date in string form)
+			System.out.println("inputString2: " + inputString2);
+			try
+			{
+				endDate = df.parse(inputString2);																		                            // convert string to date
+			}
+			catch (ParseException e)
+			{
+				e.printStackTrace();
+			}
+			endTime = Float.valueOf(endDate.getTime() + ".0");															                  // convert millis to timestamp
+			System.out.println("timestamp: " + endDate.getTime() + "\n endDate: " + endDate);
+	    textPaneQuery.setText(	"{ $and: [ { \"created_at\": { $gte: " + startDate.getTime() + ".0" + " } }," +		// build and send query to text field
+									            "{ \"created_at\": { $lte: " + endDate.getTime() + ".0" + " } } ] }");
+		}
+		private static void getAll() throws UnknownHostException, ParseException
+		{
+			nowStr = now.format(format).replace('/', '.');
+			
+			MongoDatabase database = getMongoClient().getDatabase("*****");
+            MongoCollection<Document> collection = database.getCollection("*****");
+            Document query = new Document();
+            query.append("$and", Arrays.asList(	new Document().append("created_at",
+            									new Document().append("$lte", Float.valueOf((df.parse(nowStr).getTime()) + ".0"))),
+            									new Document().append("email",
+												      new Document().append("$not", Pattern.compile(".*deleted@whats2doo\\.com.*", Pattern.CASE_INSENSITIVE)))));
+            help = 0;
+            Block<Document> processBlock = new Block<Document>()
+            {
+            	@Override
+                public void apply(final Document document)
+                {
+            		docArray = document.toString().trim().split("\\s*,\\s*", -1);
+            		help++;
+                	for(int i = 0; i < docArray.length; i++)
+                	{	
+                			valueList.append(docArray[i] + "\n");
+	                		valueList.append("\n");
+                	}
+                  valueList.append("\n");
+                }
+            };
+            collection.find(query).forEach(processBlock);
+		}
+		public static void main(String[] args)																			                        // main method
+		{																												                                            //JFrame section
+			daFrame = new JFrame("bspFrame");
+			daFrame.setTitle("GUD (get your data)");
+			daFrame.setSize(1050,718);
+			daFrame.getContentPane().setLayout(null);
+																														                                            // label section
+			labelTSstart = new JLabel("Timestamp start:");
+			labelTSstart.setBounds(10, 11, 104, 30);
+			daFrame.getContentPane().add(labelTSstart);
+			
+			labelTSend = new JLabel("Timestamp end:");
+			labelTSend.setBounds(10, 51, 104, 30);
+			daFrame.getContentPane().add(labelTSend);
+			
+			labelText1 = new JLabel("Anzahl der gefunden Ergnisse:");
+			labelText1.setFont(new Font("Tahoma", Font.PLAIN, 18));
+			labelText1.setBounds(10, 643, 248, 25);
+			daFrame.getContentPane().add(labelText1);
+			
+			labelText2 = new JLabel("Query: ");
+			labelText2.setBounds(10, 131, 75, 14);
+			daFrame.getContentPane().add(labelText2);
+			
+			labelCount = new JLabel("...");
+			labelCount.setToolTipText("count of results");
+			labelCount.setForeground(new Color(255, 0, 0));
+			labelCount.setFont(new Font("Arial Black", Font.PLAIN, 18));
+			labelCount.setBackground(new Color(0, 255, 0));
+			labelCount.setBounds(263, 643, 75, 25);
+			daFrame.getContentPane().add(labelCount);
+			
+			labelToday = new JLabel("Datum: " + now.format(format).replace('/', '.'));
+			labelToday.setFont(new Font("Tahoma", Font.PLAIN, 18));
+			labelToday.setBounds(452, 643, 209, 25);
+			daFrame.getContentPane().add(labelToday);
+			
+			labelQuery = new JLabel("Time value from date is always at 00:00:00! " +
+									"Enter start and end date and choose category with button");
+			labelQuery.setBounds(124, 106, 642, 14);
+			daFrame.getContentPane().add(labelQuery);
+																														                                            // textField section
+			textTSstart = new JTextField();
+			textTSstart.setBounds(124, 16, 500, 20);
+			daFrame.getContentPane().add(textTSstart);
+			textTSstart.setColumns(10);
+			
+			textTSend = new JTextField();
+			textTSend.setBounds(124, 56, 500, 20);
+			daFrame.getContentPane().add(textTSend);
+			textTSend.setColumns(10);
+																														                                            // JtextPane section
+			textPaneQuery = new JTextPane();
+			textPaneQuery.setBounds(124, 125, 900, 20);
+			daFrame.getContentPane().add(textPaneQuery);
+																														                                            // JList section
+			valueList = new TextArea();
+			valueList.setBounds(10, 151, 1014, 486);
+			daFrame.getContentPane().add(valueList);
+																														                                            // button section
+			getUsers = new JButton("getUsers");																			                          // getUsers
+			getUsers.setBounds(776, 15, 119, 25);
+			getUsers.setMinimumSize(new Dimension(25, 15));
+			getUsers.setMaximumSize(new Dimension(25, 15));
+			getUsers.setPreferredSize(new Dimension(50, 15));
+			getUsers.setVerticalAlignment(SwingConstants.TOP);
+			getUsers.setToolTipText("Fill out start/ with EU date format and click button to get Users");
+			getUsers.setBackground(Color.CYAN);
+			getUsers.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						btnGetUsers();
+						getUsers(startTime, endTime);
+						getMongoClient().close();
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}	
+			});
+			daFrame.getContentPane().add(getUsers);
+			
+			getToDos = new JButton("getToDos");																			                          // getToDos
+			getToDos.setToolTipText("Fill out start/ with EU date format and click button to get ToDos");
+			getToDos.setBackground(Color.GREEN);
+			getToDos.setBounds(776, 51, 119, 25);
+			getToDos.setMinimumSize(new Dimension(25, 15));
+			getToDos.setMaximumSize(new Dimension(25, 15));
+			getToDos.setPreferredSize(new Dimension(50, 15));
+			getToDos.setVerticalAlignment(SwingConstants.TOP);
+			getToDos.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						btnGetTodos();
+						getTodos(startTime, endTime);
+						getMongoClient().close();
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getToDos);
+			
+			getComments = new JButton("getComments");																	                        // getComments	
+			getComments.setToolTipText("Fill out start/ with EU date format and click button to get Comments");
+			getComments.setBackground(Color.ORANGE);
+			getComments.setBounds(905, 15, 119, 25);
+			getComments.setMinimumSize(new Dimension(25, 15));
+			getComments.setMaximumSize(new Dimension(25, 15));
+			getComments.setPreferredSize(new Dimension(50, 15));
+			getComments.setVerticalAlignment(SwingConstants.TOP);
+			getComments.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						category = "comments";
+						btnGetRemaining();
+						getRemaining(startTime, endTime, category);
+						getMongoClient().close();
+						category = "";
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getComments);
+			
+			getRatings = new JButton("getRatings");																		                        // getRatings
+			getRatings.setToolTipText("Fill out start/ with EU date format and click button to get Ratings");
+			getRatings.setBackground(Color.YELLOW);
+			getRatings.setBounds(905, 51, 119, 25);
+			getRatings.setMinimumSize(new Dimension(25, 15));
+			getRatings.setMaximumSize(new Dimension(25, 15));
+			getRatings.setPreferredSize(new Dimension(50, 15));
+			getRatings.setVerticalAlignment(SwingConstants.TOP);
+			getRatings.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						category = "ratings";
+						btnGetRemaining();
+						getRemaining(startTime, endTime, category);
+						getMongoClient().close();
+						category = "";
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getRatings);
+			
+			getRequests = new JButton("getRequests");
+			getRequests.setForeground(Color.WHITE);
+			getRequests.setBackground(Color.BLUE);
+			getRequests.setToolTipText("Fill out start/ with EU date format and click button to get Requests");
+			getRequests.setBounds(776, 84, 119, 25);
+			getRequests.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						category = "requests";
+						btnGetRemaining();
+						getRemaining(startTime, endTime, category);
+						getMongoClient().close();
+						category = "";
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getRequests);
+			
+			getChelpers = new JButton("getChelpers");
+			getChelpers.setBackground(Color.MAGENTA);
+			getChelpers.setToolTipText("Fill out text areas and click button to get confirmed Helpers");
+			getChelpers.setBounds(905, 84, 119, 25);
+			getChelpers.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+						btnGetChelpers();
+						getChelpers(startTime, endTime);
+						getMongoClient().close();
+					}
+					catch (UnknownHostException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getChelpers);
+			
+			getAll = new JButton("getAll");
+			getAll.setToolTipText("Catch them all!");
+			getAll.setBackground(SystemColor.info);
+			getAll.setBounds(671, 644, 89, 25);
+			getAll.setMinimumSize(new Dimension(25, 15));
+			getAll.setMaximumSize(new Dimension(25, 15));
+			getAll.setPreferredSize(new Dimension(50, 15));
+			getAll.setVerticalAlignment(SwingConstants.TOP);
+			getAll.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					try
+					{
+							getAll();
+					}
+					catch (UnknownHostException | ParseException e)
+					{
+						System.out.println(e);
+					}
+				}
+			});
+			daFrame.getContentPane().add(getAll);
+			
+			clearTextarea = new JButton("clearTextarea");
+			clearTextarea.setBackground(SystemColor.inactiveCaption);
+			clearTextarea.setToolTipText("Click to clear the result field");
+			clearTextarea.setBounds(770, 644, 142, 25);
+			clearTextarea.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					valueList.setText("");
+				}
+			});
+			daFrame.getContentPane().add(clearTextarea);
+			
+			clearButton = new JButton("clearAll");																			                      // clear fields
+			clearButton.setToolTipText("Click to clear the fields");
+			clearButton.setBackground(SystemColor.activeCaption);
+			clearButton.setBounds(922, 644, 102, 25);
+			clearButton.setMinimumSize(new Dimension(25, 15));
+			clearButton.setMaximumSize(new Dimension(25, 15));
+			clearButton.setPreferredSize(new Dimension(50, 15));
+			clearButton.setVerticalAlignment(SwingConstants.TOP);
+			clearButton.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					textTSstart.setText("");
+					textTSend.setText("");
+					labelCount.setText("");
+					valueList.setText("");
+					textPaneQuery.setText("");
+				}
+			});
+			daFrame.getContentPane().add(clearButton);
+			
+			increaseStartdate = new JButton("+");
+			increaseStartdate.setBackground(Color.BLACK);
+			increaseStartdate.setForeground(Color.WHITE);
+			increaseStartdate.setToolTipText("+1");
+			increaseStartdate.setBounds(634, 15, 45, 23);
+			increaseStartdate.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					c = Calendar.getInstance();
+					inputString1 = textTSstart.getText();
+					try
+					{
+						c.setTime(df.parse(inputString1));
+					}
+					catch(Exception e)
+					{
+						e.printStackTrace();
+					}
+					timeValue = cbDatevalue.getSelectedItem().toString();
+					if (timeValue == "Day")
+					{
+						c.add(Calendar.DATE, 1);
+					}
+					else if (timeValue == "Month")
+					{
+						c.add(Calendar.MONTH, 1);
+					}
+					else
+					{
+						c.add(Calendar.YEAR, 1);
+					}
+					textTSstart.setText(df.format(c.getTime()));
+					c = null;
+				}
+			});
+			daFrame.getContentPane().add(increaseStartdate);
+			
+			decreaseStartdate = new JButton("-");
+			decreaseStartdate.setForeground(Color.WHITE);
+			decreaseStartdate.setBackground(Color.BLACK);
+			decreaseStartdate.setToolTipText("-1");
+			decreaseStartdate.setBounds(689, 15, 45, 23);
+			decreaseStartdate.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					c = Calendar.getInstance();
+					inputString1 = textTSstart.getText();
+					try
+					{
+						c.setTime(df.parse(inputString1));
+					}
+					catch(Exception e)
+					{
+						e.printStackTrace();
+					}
+					timeValue = cbDatevalue.getSelectedItem().toString();
+					if (timeValue == "Day")
+					{
+						c.add(Calendar.DATE, -1);
+					}
+					else if (timeValue == "Month")
+					{
+						c.add(Calendar.MONTH, -1);
+					}
+					else
+					{
+						c.add(Calendar.YEAR, -1);
+					}
+					textTSstart.setText(df.format(c.getTime()));
+					c = null;
+				}
+			});
+			daFrame.getContentPane().add(decreaseStartdate);
+			
+			increaseEnddate = new JButton("+");
+			increaseEnddate.setToolTipText("+1");
+			increaseEnddate.setBackground(Color.BLACK);
+			increaseEnddate.setForeground(Color.WHITE);
+			increaseEnddate.setBounds(634, 55, 45, 23);
+			increaseEnddate.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					c = Calendar.getInstance();
+					inputString2 = textTSend.getText();
+					try
+					{
+						c.setTime(df.parse(inputString2));
+					}
+					catch(Exception e)
+					{
+						e.printStackTrace();
+					}
+					timeValue = cbDatevalue.getSelectedItem().toString();
+					if (timeValue == "Day")
+					{
+						c.add(Calendar.DATE, 1);
+					}
+					else if (timeValue == "Month")
+					{
+						c.add(Calendar.MONTH, 1);
+					}
+					else
+					{
+						c.add(Calendar.YEAR, 1);
+					}
+					textTSend.setText(df.format(c.getTime()));
+					c = null;
+				}
+			});
+			daFrame.getContentPane().add(increaseEnddate);
+			
+			decreaseEnddate = new JButton("-");
+			decreaseEnddate.setToolTipText("-1");
+			decreaseEnddate.setBackground(Color.BLACK);
+			decreaseEnddate.setForeground(Color.WHITE);
+			decreaseEnddate.setBounds(689, 55, 45, 23);
+			decreaseEnddate.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent arg0)
+				{
+					c = Calendar.getInstance();
+					inputString2 = textTSend.getText();				
+					try
+					{
+						c.setTime(df.parse(inputString2));
+					}
+					catch(Exception e)
+					{
+						e.printStackTrace();
+					}
+					timeValue = cbDatevalue.getSelectedItem().toString();
+					if (timeValue == "Day")
+					{
+						c.add(Calendar.DATE, -1);
+					}
+					else if (timeValue == "Month")
+					{
+						c.add(Calendar.MONTH, -1);
+					}
+					else
+					{
+						c.add(Calendar.YEAR, -1);
+					}
+					textTSend.setText(df.format(c.getTime()));
+					c = null;
+				}
+			});
+			daFrame.getContentPane().add(decreaseEnddate);
+			
+			cbDatevalue = new JComboBox();
+			cbDatevalue.addItem("Day"); 
+			cbDatevalue.addItem("Month");
+			cbDatevalue.addItem("Year");
+			cbDatevalue.setToolTipText("select which value of date should change");
+			cbDatevalue.setBounds(634, 86, 100, 20);
+			daFrame.getContentPane().add(cbDatevalue);
+			
+
+			daFrame.setVisible(true);
+			try
+			{
+				ping();
+			}
+			catch(Exception e)
+			{
+				System.out.println(e);
+			}
+		}
+	}
